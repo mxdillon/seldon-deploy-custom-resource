@@ -7,11 +7,8 @@ import (
     appsv1 "k8s.io/api/apps/v1"
     apiv1 "k8s.io/api/core/v1"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    "k8s.io/client-go/kubernetes"
-    "k8s.io/client-go/tools/clientcmd"
-    "log"
+    "seldon-deploy-custom-resource/pkg"
 )
-
 
 var k string
 
@@ -23,21 +20,7 @@ func init() {
 
 func main() {
 
-    // uses the current context in kubeconfig
-    // path-to-kubeconfig -- for example, /root/.kube/config
-    config, err := clientcmd.BuildConfigFromFlags("", k)
-    if err != nil{
-        log.Panic(err)
-    }
-
-    // creates the clientset - HANDLE THE ERROR!
-    clientset, err := kubernetes.NewForConfig(config)
-    if err != nil {
-        log.Panic(err)
-    }
-
-    // return clientset.CoreV1()
-
+    clientset := pkg.SetupClient(k)
     api := clientset.CoreV1()
 
     // access the API to list pods
@@ -47,6 +30,9 @@ func main() {
     // apply CRD to specified namespace
 
     deploymentsClient := clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
+
+    seldonDeployment := pkg.CreateDeployment("seldon-crd.json")
+    fmt.Println(seldonDeployment.TypeMeta)
 
     deployment := &appsv1.Deployment{
         ObjectMeta: metav1.ObjectMeta{
@@ -92,10 +78,10 @@ func main() {
     }
     fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
 
-
-
-//    to monitor what is going on with the resource, v1.ListOptions{Watch: true}
+    //    to monitor what is going on with the resource, v1.ListOptions{Watch: true}
 
 }
 
 func int32Ptr(i int32) *int32 { return &i }
+
+

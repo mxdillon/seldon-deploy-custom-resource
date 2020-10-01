@@ -3,7 +3,8 @@ module seldon-deploy-custom-resource
 go 1.15
 
 require (
-    //k8s.io/api v0.17.0
-    k8s.io/apimachinery v0.19.0
-    k8s.io/client-go v0.19.0
+	github.com/seldonio/seldon-core/operator v0.0.0-20200930164230-41a462013a9c
+	k8s.io/api v0.18.8
+	k8s.io/apimachinery v0.18.8
+	k8s.io/client-go v0.18.8
 )
