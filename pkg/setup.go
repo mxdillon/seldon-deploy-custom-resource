@@ -9,7 +9,7 @@ import (
     "log"
 )
 
-// setupClient creates the clientset and returns the API to interact with the k8s cluster.
+// SetupClient creates the clientset and returns the API to interact with the k8s cluster.
 func SetupClient(k string) *kubernetes.Clientset {
     config, err := clientcmd.BuildConfigFromFlags("", k)
     if err != nil {
@@ -24,7 +24,7 @@ func SetupClient(k string) *kubernetes.Clientset {
     return clientset
 }
 
-// createDeployment reads the CRD json and populates a SeldonDeployment struct with the data.
+// CreateDeployment reads the CRD json and populates a SeldonDeployment struct with the data.
 func CreateDeployment(f string) *seldonv2.SeldonDeployment {
     sD := &seldonv2.SeldonDeployment{}
 

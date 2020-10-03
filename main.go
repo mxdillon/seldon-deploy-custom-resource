@@ -4,16 +4,20 @@ import (
     "context"
     "flag"
     "fmt"
-    appsv1 "k8s.io/api/apps/v1"
+    seldonv2 "github.com/seldonio/seldon-core/operator/apis/machinelearning.seldon.io/v1alpha2"
     apiv1 "k8s.io/api/core/v1"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    "k8s.io/apimachinery/pkg/runtime"
+    "log"
     "seldon-deploy-custom-resource/pkg"
+    ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var k string
 
 // init allows user to specify location of config file. Defaults to working directory.
 func init() {
+
     flag.StringVar(&k, "kconfig", "./config", "Location of the k8s config file")
     flag.Parse()
 }
@@ -27,61 +31,51 @@ func main() {
     pods, _ := api.Pods("").List(context.TODO(), metav1.ListOptions{})
     fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
 
-    // apply CRD to specified namespace
-
-    deploymentsClient := clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
-
     seldonDeployment := pkg.CreateDeployment("seldon-crd.json")
-    fmt.Println(seldonDeployment.TypeMeta)
 
-    deployment := &appsv1.Deployment{
+
+    // specify namespace to deploy into
+    ns := &apiv1.Namespace{
         ObjectMeta: metav1.ObjectMeta{
-            Name: "demo-deployment",
-        },
-        Spec: appsv1.DeploymentSpec{
-            Replicas: int32Ptr(2),
-            Selector: &metav1.LabelSelector{
-                MatchLabels: map[string]string{
-                    "app": "demo",
-                },
-            },
-            Template: apiv1.PodTemplateSpec{
-                ObjectMeta: metav1.ObjectMeta{
-                    Labels: map[string]string{
-                        "app": "demo",
-                    },
-                },
-                Spec: apiv1.PodSpec{
-                    Containers: []apiv1.Container{
-                        {
-                            Name:  "web",
-                            Image: "nginx:1.12",
-                            Ports: []apiv1.ContainerPort{
-                                {
-                                    Name:          "http",
-                                    Protocol:      apiv1.ProtocolTCP,
-                                    ContainerPort: 80,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+            Name: "seldon-crd",
         },
     }
 
-    // Create Deployment
-    fmt.Println("Creating deployment...")
-    result, err := deploymentsClient.Create(context.TODO(), deployment, metav1.CreateOptions{})
-    if err != nil {
-        panic(err)
-    }
-    fmt.Printf("Created deployment %q.\n", result.GetObjectMeta().GetName())
+    // set namespace in SeldonDeployment
+    seldonDeployment.ObjectMeta.Namespace = ns.ObjectMeta.Name
 
-    //    to monitor what is going on with the resource, v1.ListOptions{Watch: true}
+    sch := runtime.NewScheme()
+
+    // create manager for creating controllers
+    cfg, err := ctrl.GetConfig()
+    k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
+        Scheme:         sch,
+        LeaderElection: false,
+        Namespace: ns.ObjectMeta.Name,
+    })
+    // create client
+    k8sClient := k8sManager.GetClient()
+
+    // add kind SeldonDeployment to scheme to enable creation
+    if err = seldonv2.AddToScheme(sch); err != nil {
+        log.Fatalf("Error - couldn't add SeldonDeployment to scheme: %v", err)
+    }
+
+    // add kind SeldonDeployment to scheme to enable creation
+    if err = apiv1.AddToScheme(sch); err != nil {
+        log.Fatalf("Error - couldn't add apiv1 to scheme: %v", err)
+    }
+
+    // if specified ns doesn't exist, create it
+    //if err = k8sClient.Create(context.Background(), ns); err != nil {
+    //    log.Fatalf("Error - couldn't create namespace: %v", err)
+    //}
+
+    // apply deployment to cluster
+    if err = k8sClient.Create(context.Background(), seldonDeployment); err != nil {
+        log.Fatalf("Error - couldn't create CRD: %v", err)
+    }
+
+
 
 }
-
-func int32Ptr(i int32) *int32 { return &i }
-
-
