@@ -82,7 +82,7 @@ func main() {
     log.Printf("Deleting CRD %v from namespace %v.", latest.Name, latest.Namespace)
 
 
-    // //Attempting to implement event listener:
+    // //Attempting to implement event listener - info on approach in readme:
     //config, _ := clientcmd.BuildConfigFromFlags("", k)
     //clientset, _ := kubernetes.NewForConfig(config)
     //factory := informers.NewSharedInformerFactory(clientset, 0)
