@@ -81,6 +81,16 @@ func main() {
     }
     log.Printf("Deleting CRD %v from namespace %v.", latest.Name, latest.Namespace)
 
+
+    // //Attempting to implement event listener:
+    //config, _ := clientcmd.BuildConfigFromFlags("", k)
+    //clientset, _ := kubernetes.NewForConfig(config)
+    //factory := informers.NewSharedInformerFactory(clientset, 0)
+    //informer := factory.Core().V1().Events().Lister()
+    //stopper := make(chan struct{})
+    //informer.List(labels.Everything())
+    //defer close(stopper)
+
 }
 
 func int32Ptr(i int32) *int32 { return &i }
