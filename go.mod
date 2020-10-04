@@ -1,4 +1,4 @@
-module seldon-deploy-custom-resource
+module github.com/mxdillon/seldon-deploy-custom-resource
 
 go 1.15
 

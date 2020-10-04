@@ -1,4 +1,4 @@
-# seldon-deploy-custom-resource
+# .Background-deploy-custom-resource
 
 
 
@@ -17,4 +17,3 @@ must use the command line flag `-kconfig=<relativepath>` when running the module
 the argument blank defaults to the top level, ie `-kconfig=./config`.
 3. The Seldon CRD used for this module can be found [here](https://raw.githubusercontent.com/SeldonIO/seldon-core/master/notebooks/resources/model.json).
 This can be pasted over with another CRD if desired.
-

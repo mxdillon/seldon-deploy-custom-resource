@@ -3,85 +3,72 @@ package main
 import (
     "context"
     "flag"
-    seldonv2 "github.com/seldonio/seldon-core/operator/apis/machinelearning.seldon.io/v1"
-    apiv1 "k8s.io/api/core/v1"
-    "k8s.io/apimachinery/pkg/runtime"
-    "k8s.io/client-go/tools/clientcmd"
+    "github.com/mxdillon/seldon-deploy-custom-resource/pkg"
+    seldonv2 "github.com/seldonio/seldon-core/operator/apis/machinelearning.seldon.io/v1alpha2"
+    "k8s.io/apimachinery/pkg/types"
     "log"
-    "seldon-deploy-custom-resource/pkg"
-    ctrl "sigs.k8s.io/controller-runtime"
-    "time"
 )
 
-var k, f, nsName string
+var (
+    k, f, nsName string
+    n            int
+)
 
 func init() {
     flag.StringVar(&k, "kconfig", "./config", "Location of the k8s config file")
     flag.StringVar(&f, "filename", "./seldon-crd.json", "Location of the Seldon CRD json file")
     flag.StringVar(&nsName, "ns", "seldon-crd", "Name of the namespace to deploy into")
+    flag.IntVar(&n, "replicas", 2, "Number of replicas to scale up to")
     flag.Parse()
 }
 
 func main() {
 
-    //clientset := pkg.SetupClient(k)
-    //api := clientset.CoreV1()
-
-    //// access the API to list pods
-    //pods, _ := api.Pods("").List(context.Background(), metav1.ListOptions{})
-    //fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
+    k8sClient := pkg.SetupClient(k)
 
     seldonDeployment := pkg.CreateDeployment(f)
     ns := pkg.AddNamespace(seldonDeployment, nsName)
 
-    sch := runtime.NewScheme()
-
-    config, err := clientcmd.BuildConfigFromFlags("", k)
-
-    // add Seldon api to scheme to enable creation of SeldonDeployment resource
-    if err = seldonv2.AddToScheme(sch); err != nil {
-        log.Fatalf("Error - couldn't add SeldonDeployment to scheme: %v", err)
-    }
-    // add apiv1 to scheme to enable creation of namespace
-    if err = apiv1.AddToScheme(sch); err != nil {
-        log.Fatalf("Error - couldn't add apiv1 to scheme: %v", err)
-    }
-
-    // initialise manager for creating controllers
-    k8sManager, err := ctrl.NewManager(config, ctrl.Options{
-        Scheme: sch,
-        LeaderElection: false,
-    })
-    // create client
-    k8sClient := k8sManager.GetClient()
-
-
     // if specified namespace doesn't exist, create it
-    if err = k8sClient.Create(context.Background(), ns); err != nil {
+    if err := k8sClient.Create(context.Background(), ns); err != nil {
         log.Printf("Namespace %v might already exist: %v", ns.ObjectMeta.Name, err)
     }
 
     // apply deployment to cluster
-    if err = k8sClient.Create(context.Background(), seldonDeployment); err != nil {
+    log.Printf("Applying CRD %v to cluster.", seldonDeployment.Name)
+    if err := k8sClient.Create(context.Background(), seldonDeployment); err != nil {
         log.Fatalf("Error - couldn't create CRD: %v", err)
     }
 
-    time.Sleep(time.Second * 20)
+    // wait for pod to become available
+    log.Printf("Waiting for CRD pod to become available.")
+    pkg.WaitForStatus("Available", seldonDeployment, k8sClient)
 
-    // scale the resource to 2 replicas
-    seldonDeployment.Spec.Predictors[0].Replicas = int32Ptr(2)
-
-    // apply update to cluster
-    if err = k8sClient.Update(context.Background(), seldonDeployment); err != nil {
-       log.Fatalf("Error - couldn't update CRD: %v", err)
+    // get latest state of seldonDeployment to update
+    latest := &seldonv2.SeldonDeployment{}
+    key := types.NamespacedName{
+        Name:      seldonDeployment.Name,
+        Namespace: seldonDeployment.Namespace,
+    }
+    if err := k8sClient.Get(context.Background(), key, latest); err != nil {
+        log.Fatalf("Error - couldn't get latest info on CRD: %v", err)
     }
 
-    time.Sleep(time.Second * 20)
+    // update number of replicas and apply to cluster
+    latest.Spec.Predictors[0].Replicas = int32Ptr(int32(n))
+    if err := k8sClient.Update(context.Background(), latest); err != nil {
+        log.Fatalf("Error - couldn't update CRD: %v", err)
+    }
 
-    // delete SeldonDeployment from cluster
-    if err = k8sClient.Delete(context.Background(), seldonDeployment); err != nil {
+    // wait for replicas to become available
+    log.Printf("Waiting for all %v replicas of CRD to become available.", n)
+    pkg.WaitForReplicas(n, latest, k8sClient)
+
+    // delete SeldonDeployment CRD from cluster
+    if err := k8sClient.Delete(context.Background(), latest); err != nil {
         log.Fatalf("Error - couldn't delete CRD: %v", err)
     }
+    log.Printf("Deleting CRD %v from namespace %v.", latest.Name, latest.Namespace)
 
 }
 
