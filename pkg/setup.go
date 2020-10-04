@@ -2,6 +2,7 @@ package pkg
 
 import (
     "encoding/json"
+    "errors"
     seldonv2 "github.com/seldonio/seldon-core/operator/apis/machinelearning.seldon.io/v1alpha2"
     "io/ioutil"
     apiv1 "k8s.io/api/core/v1"
@@ -14,44 +15,47 @@ import (
 
 // SetupClient creates and returns the k8s through which we interact with the cluster.
 // Both the seldon and k8s.io/api apis are added to the scheme so we can manipulate resources on the cluster.
-func SetupClient(k string) client.Client {
+func SetupClient(k string) (client.Client, error) {
     config, err := clientcmd.BuildConfigFromFlags("", k)
     if err != nil {
-        log.Fatalf("Error - failed to build config: %v", err)
+        return nil, err
     }
 
     sch := runtime.NewScheme()
     if err = seldonv2.AddToScheme(sch); err != nil {
-        log.Fatalf("Error - couldn't add SeldonDeployment to scheme: %v", err)
+        return nil, err
     }
     if err = apiv1.AddToScheme(sch); err != nil {
-        log.Fatalf("Error - couldn't add apiv1 to scheme: %v", err)
+        return nil, err
     }
 
     k8sClient, err := client.New(config, client.Options{Scheme: sch})
     if err != nil {
-        log.Fatalf("Error - failed to create client: %v", err)
+        return nil, err
     }
-    return k8sClient
+    log.Printf("Configured the k8s client.")
+    return k8sClient, nil
 }
 
 // CreateDeployment reads the CRD json and populates a SeldonDeployment struct with the data.
-func CreateDeployment(f string) *seldonv2.SeldonDeployment {
+func CreateDeployment(f string) (*seldonv2.SeldonDeployment, error) {
     sD := &seldonv2.SeldonDeployment{}
 
     if f[len(f)-5:] != ".json" {
-        log.Fatalln("Error - must pass a json filename to CreateDeployment. Include the .json suffix.")
+        err := errors.New("Error - must pass a json filename to CreateDeployment. Include the .json suffix.")
+        return nil, err
     }
 
     file, err := ioutil.ReadFile(f)
     if err != nil {
-        log.Fatal("Error - failed to read json: %v", err)
+        return nil, err
     }
 
     if err = json.Unmarshal(file, &sD); err != nil {
-        log.Fatal("Error - failed to unmarshall json into SeldonDeployment: %v", err)
+        return nil, err
     }
-    return sD
+    log.Printf("Created Seldon CRD from json.")
+    return sD, nil
 }
 
 // AddNamespace creates a namespace variable and adds the namespace name to the SeldonDeployment CRD.
@@ -62,5 +66,6 @@ func AddNamespace(sd *seldonv2.SeldonDeployment, n string) *apiv1.Namespace {
         },
     }
     sd.ObjectMeta.Namespace = ns.ObjectMeta.Name
+    log.Printf("Added namespace %v to seldon CRD definition.", n)
     return ns
 }

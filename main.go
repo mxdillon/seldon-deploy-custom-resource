@@ -24,9 +24,16 @@ func init() {
 
 func main() {
 
-    k8sClient := pkg.SetupClient(k)
+    k8sClient, err := pkg.SetupClient(k)
+    if err != nil {
+        log.Fatalf("Error setting up client: %v", err)
+    }
 
-    seldonDeployment := pkg.CreateDeployment(f)
+    seldonDeployment, err := pkg.CreateDeployment(f)
+    if err != nil {
+        log.Fatalf("Error creating Seldon Deployment CRD: %v", err)
+    }
+
     ns := pkg.AddNamespace(seldonDeployment, nsName)
 
     // if specified namespace doesn't exist, create it
@@ -42,7 +49,9 @@ func main() {
 
     // wait for pod to become available
     log.Printf("Waiting for CRD pod to become available.")
-    pkg.WaitForStatus("Available", seldonDeployment, k8sClient)
+    if err := pkg.WaitForStatus("Available", seldonDeployment, k8sClient); err != nil {
+        log.Fatalf("Error waiting for CRD to be ready: %v", err)
+    }
 
     // get latest state of seldonDeployment to update
     latest := &seldonv2.SeldonDeployment{}
@@ -62,7 +71,9 @@ func main() {
 
     // wait for replicas to become available
     log.Printf("Waiting for all %v replicas of CRD to become available.", n)
-    pkg.WaitForReplicas(n, latest, k8sClient)
+    if err := pkg.WaitForReplicas(n, latest, k8sClient); err != nil {
+        log.Fatalf("Error waiting for replicas to be available: %v", err)
+    }
 
     // delete SeldonDeployment CRD from cluster
     if err := k8sClient.Delete(context.Background(), latest); err != nil {
