@@ -2,8 +2,10 @@ package pkg
 
 import (
     "encoding/json"
-    seldonv2 "github.com/seldonio/seldon-core/operator/apis/machinelearning.seldon.io/v1alpha2"
+    seldonv2 "github.com/seldonio/seldon-core/operator/apis/machinelearning.seldon.io/v1"
     "io/ioutil"
+    apiv1 "k8s.io/api/core/v1"
+    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
     "k8s.io/client-go/kubernetes"
     "k8s.io/client-go/tools/clientcmd"
     "log"
@@ -42,4 +44,17 @@ func CreateDeployment(f string) *seldonv2.SeldonDeployment {
     }
 
     return sD
+}
+
+// AddNamespace creates a namespace variable and adds the namespace name to the SeldonDeployment crd.
+func AddNamespace(sd *seldonv2.SeldonDeployment, n string) *apiv1.Namespace {
+    ns := &apiv1.Namespace{
+        ObjectMeta: metav1.ObjectMeta{
+            Name: n,
+        },
+    }
+
+    sd.ObjectMeta.Namespace = ns.ObjectMeta.Name
+
+    return ns
 }
