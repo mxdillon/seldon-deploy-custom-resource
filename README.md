@@ -15,7 +15,7 @@ it is deleted.
 
 #### Prerequisites:
 1. This module has been written in golang v1.15 and has not been tested on previous versions.
-2. You will need a kubernetes cluster with Seldon Core deployed onto it. This module was developed using
+2. You will need a kubernetes cluster with Seldon Core deployed onto it and the `kubectl` CLI. This module was developed using
 [kind](https://kind.sigs.k8s.io/docs/user/quick-start/) and has not been tested on any other k8s infrastructure.
 3. Ensure you are connected to the context of the k8s cluster you wish to manipulate. Use `kubectl config get-contexts`
 to verify.
