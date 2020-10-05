@@ -51,6 +51,12 @@ This can be overwritten, or another json can be pointed to with the `filename` c
    | ns | Name of the namespace to deploy into. If it doesn't exist already this module will create it. | `-ns hello` | `-ns seldon-crd`  |
    | replicas | Number of replicas to scale up to. | `-replicas 10` | `-replicas 2`  |
 
+4. Follow what is happening on the cluster in separate terminals with the commands:
+    ```
+   kubectl get events -w
+   watch kubectl get pods -A
+   ```
+
 
 -------
 ### Extensions
