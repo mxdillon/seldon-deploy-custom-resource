@@ -13,7 +13,7 @@ import (
     "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// SetupClient creates and returns the k8s through which we interact with the cluster.
+// SetupClient creates and returns the k8s client through which we interact with the cluster.
 // Both the seldon and k8s.io/api apis are added to the scheme so we can manipulate resources on the cluster.
 func SetupClient(k string) (client.Client, error) {
     config, err := clientcmd.BuildConfigFromFlags("", k)
@@ -38,6 +38,7 @@ func SetupClient(k string) (client.Client, error) {
 }
 
 // CreateDeployment reads the CRD json and populates a SeldonDeployment struct with the data.
+// Includes error handling for when a non-json file is passed to the function.
 func CreateDeployment(f string) (*seldonv2.SeldonDeployment, error) {
     sD := &seldonv2.SeldonDeployment{}
 

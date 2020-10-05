@@ -9,7 +9,7 @@ import (
     "time"
 )
 
-// WaitForStatus halts execution until the specified status is returned by the resource.
+// WaitForStatus halts execution until the specified status is returned by the resource. Checks every 2 seconds.
 func WaitForStatus(s string, sd *seldonv2.SeldonDeployment, c client.Client) error {
     status := ""
     for status != s {
@@ -28,7 +28,9 @@ func WaitForStatus(s string, sd *seldonv2.SeldonDeployment, c client.Client) err
     return nil
 }
 
-// WaitForReplicas halts execution until the specified number of replicas are available.
+// WaitForReplicas halts execution until the specified number of replicas are available. Checks every 2 seconds.
+// This function is brittle - it requires that the resource name end "-0-classifier" so may need adjusting for other
+// Seldon CRDs.
 func WaitForReplicas(n int, sd *seldonv2.SeldonDeployment, c client.Client) error {
     replicas := 0
     rName := sd.Name + "-" + sd.Spec.Predictors[0].Name + "-0-classifier"
